@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"net/http"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -19,9 +18,10 @@ func main() {
 		})
 	})
 
-	server.Initialize(&router.RouterGroup)
+	sseServer := server.NewServer()
+	server.MountHandler(&router.RouterGroup, sseServer)
 
-	err := http.ListenAndServe(":3000", router)
+	err := router.Run(":8000")
 	if err != nil {
 		log.Fatal(err)
 	}
