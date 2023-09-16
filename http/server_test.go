@@ -1,4 +1,4 @@
-package simpleserver_test
+package http_test
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/surasithaof/sse/simpleserver"
+	sseHTTP "github.com/surasithaof/sse/http"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 
 func TestSSEServer(t *testing.T) {
 
-	sseServer := simpleserver.NewServer()
+	sseServer := sseHTTP.NewServer()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sseServer.ServeHTTP(w, r, TestConnectionID)

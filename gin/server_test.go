@@ -1,4 +1,4 @@
-package ginserver_test
+package gin_test
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/surasithaof/sse/ginserver"
+	sseGin "github.com/surasithaof/sse/gin"
 )
 
 const (
@@ -41,7 +41,7 @@ func TestSSEServer(t *testing.T) {
 	res := CreateTestResponseRecorder()
 	_, r := gin.CreateTestContext(res)
 
-	sseServer := ginserver.NewServer()
+	sseServer := sseGin.NewServer()
 
 	r.GET(EventContextPath, func(ctx *gin.Context) {
 		sseServer.Listen(ctx, TestConnectionID)
@@ -82,7 +82,7 @@ func TestSSEServer(t *testing.T) {
 	// wait for client connect
 	time.Sleep(2 * time.Second)
 
-	err = sseServer.SendMessage(TestConnectionID, ginserver.Event{
+	err = sseServer.SendMessage(TestConnectionID, sseGin.Event{
 		Event:   "message",
 		Message: "test message",
 	})

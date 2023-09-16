@@ -7,8 +7,8 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/xid"
-	"github.com/surasithaof/sse/ginserver"
-	"github.com/surasithaof/sse/simpleserver"
+	sseGin "github.com/surasithaof/sse/gin"
+	sseHTTP "github.com/surasithaof/sse/http"
 )
 
 func main() {
@@ -21,10 +21,10 @@ func main() {
 		})
 	})
 
-	ginSSEServer := ginserver.NewServer()
+	ginSSEServer := sseGin.NewServer()
 	mountGinHandler(&router.RouterGroup, ginSSEServer)
 
-	simpleSSEServer := simpleserver.NewServer()
+	simpleSSEServer := sseHTTP.NewServer()
 	mountHTTPHandler(&router.RouterGroup, simpleSSEServer)
 
 	err := router.Run(":8000")
@@ -33,7 +33,7 @@ func main() {
 	}
 }
 
-func mountHTTPHandler(rGroup *gin.RouterGroup, simpleSSEServer simpleserver.SSEServer) {
+func mountHTTPHandler(rGroup *gin.RouterGroup, simpleSSEServer sseHTTP.SSEServer) {
 	rGroup.GET("/simple-events", func(ctx *gin.Context) {
 		connectionID := xid.New().String()
 		fmt.Println("client connection ID:", connectionID)
@@ -62,15 +62,15 @@ func mountHTTPHandler(rGroup *gin.RouterGroup, simpleSSEServer simpleserver.SSES
 
 }
 
-func mountGinHandler(rGroup *gin.RouterGroup, ginSSEServer ginserver.SSEServer) {
-	rGroup.GET("/gin-events", ginserver.SSEHeadersMiddleware(), func(ctx *gin.Context) {
+func mountGinHandler(rGroup *gin.RouterGroup, ginSSEServer sseGin.SSEServer) {
+	rGroup.GET("/gin-events", sseGin.SSEHeadersMiddleware(), func(ctx *gin.Context) {
 		connectionID := xid.New().String()
 		fmt.Println("client connection ID:", connectionID)
 		ginSSEServer.Listen(ctx, connectionID)
 	})
 
 	rGroup.POST("/gin-events", func(ctx *gin.Context) {
-		ginSSEServer.BroadcastMessage(ginserver.Event{
+		ginSSEServer.BroadcastMessage(sseGin.Event{
 			Event: "event",
 			Message: map[string]any{
 				"message": "test broadcast message",
@@ -81,7 +81,7 @@ func mountGinHandler(rGroup *gin.RouterGroup, ginSSEServer ginserver.SSEServer) 
 
 	rGroup.POST("/gin-events/:clientID", func(ctx *gin.Context) {
 		clientID := ctx.Param("clientID")
-		err := ginSSEServer.SendMessage(clientID, ginserver.Event{
+		err := ginSSEServer.SendMessage(clientID, sseGin.Event{
 			Event: "event",
 			Message: map[string]any{
 				"message": "test send message",

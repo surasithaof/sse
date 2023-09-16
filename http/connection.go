@@ -1,4 +1,4 @@
-package simpleserver
+package http
 
 import (
 	"context"
