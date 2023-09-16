@@ -29,6 +29,9 @@ func (r *TestResponseRecorder) closeClient() {
 	r.closeChannel <- true
 }
 
+// Use this instead of httptest.NewRecorder().
+// Because httptest.NewRecorder() not implement CloseNotify().
+// And will got error in gin.Context.Stream().
 func CreateTestResponseRecorder() *TestResponseRecorder {
 	return &TestResponseRecorder{
 		httptest.NewRecorder(),
