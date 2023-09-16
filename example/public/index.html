@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSE Client</title>
+  </head>
+  <body>
+    <h1>SSE Client</h1>
+    <div id="sse-messages"></div>
+
+    <script>
+      const sseEndpoint = "/gin-events"; // Replace with the actual SSE endpoint URL
+
+      const sseMessages = document.getElementById("sse-messages");
+
+      // Create an EventSource object to connect to the SSE endpoint
+      const eventSource = new EventSource(sseEndpoint);
+
+      // Event listener to handle incoming SSE messages
+      eventSource.addEventListener("message", (event) => {
+        console.log("event");
+        const messageData = event.data;
+        const messageElement = document.createElement("p");
+        messageElement.textContent = messageData;
+        sseMessages.appendChild(messageElement);
+      });
+
+      // Event listener to handle SSE connection errors
+      eventSource.addEventListener("error", (event) => {
+        console.error("SSE Connection Error:", event);
+      });
+
+      // Event listener to handle SSE connection closure
+      eventSource.addEventListener("close", () => {
+        console.log("SSE Connection Closed");
+      });
+
+      // Close the SSE connection when the page is unloaded or closed
+      window.addEventListener("beforeunload", () => {
+        eventSource.close();
+      });
+    </script>
+  </body>
+</html>
