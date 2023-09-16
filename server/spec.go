@@ -1,11 +1,11 @@
 package server
 
 type SSEServer interface {
-	AddClient(clientID string) Client
-	RemoveClient(clientID string) bool
-	Clients() map[string]*Client
-	Client(clientID string) (*Client, bool)
+	AddConnection(connectionID string) Connection
+	RemoveConnection(connectionID string) bool
+	Connections() map[string]*Connection
+	Connection(connectionID string) (*Connection, bool)
 
-	SendMessage(clientID string, message string)
-	BroadcastMessage(message string)
+	SendMessage(connectionID string, event Event)
+	BroadcastMessage(event Event)
 }

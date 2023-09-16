@@ -1,75 +1,77 @@
 package server
 
-import "sync"
+import (
+	"sync"
+)
 
 type serverImpl struct {
-	clients     map[string]*Client
+	connections map[string]*Connection
 	messageChan chan string
 	sync.Mutex
 }
 
 func NewServer() SSEServer {
 	s := serverImpl{
-		clients:     map[string]*Client{},
+		connections: make(map[string]*Connection),
 		messageChan: make(chan string),
 	}
 	return &s
 }
 
-func (s *serverImpl) AddClient(clientID string) Client {
+func (s *serverImpl) AddConnection(connectionID string) Connection {
 	s.Lock()
 	defer s.Unlock()
 
-	client := Client{
-		ID:          clientID,
-		messageChan: make(chan string),
+	connection := Connection{
+		ID:          connectionID,
+		messageChan: make(chan Event),
 	}
 
-	s.clients[client.ID] = &client
-	return client
+	s.connections[connection.ID] = &connection
+	return connection
 }
 
-func (s *serverImpl) RemoveClient(clientID string) bool {
+func (s *serverImpl) RemoveConnection(connectionID string) bool {
 	s.Lock()
 	defer s.Unlock()
 
-	client, ok := s.clients[clientID]
+	connection, ok := s.connections[connectionID]
 	if !ok {
 		return false
 	}
-	close(client.messageChan)
-	delete(s.clients, client.ID)
+	close(connection.messageChan)
+	delete(s.connections, connection.ID)
 	return true
 }
 
-func (s *serverImpl) Clients() map[string]*Client {
-	return s.clients
+func (s *serverImpl) Connections() map[string]*Connection {
+	return s.connections
 }
 
-func (s *serverImpl) Client(clientID string) (*Client, bool) {
-	client, ok := s.clients[clientID]
+func (s *serverImpl) Connection(connectionID string) (*Connection, bool) {
+	connection, ok := s.connections[connectionID]
 	if !ok {
 		return nil, false
 	}
-	return client, true
+	return connection, true
 }
 
-func (s *serverImpl) SendMessage(clientID string, message string) {
+func (s *serverImpl) SendMessage(connectionID string, event Event) {
 	s.Lock()
 	defer s.Unlock()
 
-	client, ok := s.clients[clientID]
+	connection, ok := s.connections[connectionID]
 	if !ok {
 		return
 	}
-	client.messageChan <- message
+	connection.SendMessage(event)
 }
 
-func (s *serverImpl) BroadcastMessage(message string) {
+func (s *serverImpl) BroadcastMessage(event Event) {
 	s.Lock()
 	defer s.Unlock()
 
-	for _, client := range s.clients {
-		client.messageChan <- message
+	for _, connection := range s.connections {
+		connection.SendMessage(event)
 	}
 }

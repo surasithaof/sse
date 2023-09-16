@@ -32,13 +32,18 @@ func main() {
 
 func mountHandler(rGroup *gin.RouterGroup, sseServer server.SSEServer) {
 	rGroup.POST("/send-event", func(ctx *gin.Context) {
-		sseServer.BroadcastMessage("test broadcast message")
+		sseServer.BroadcastMessage(server.Event{
+			Event: "event",
+			Message: gin.H{
+				"message": "test broadcast message",
+			},
+		})
 		ctx.Status(200)
 	})
 
 	rGroup.POST("/send-event/:clientID", func(ctx *gin.Context) {
 		clientID := ctx.Param("clientID")
-		client, found := sseServer.Client(clientID)
+		client, found := sseServer.Connection(clientID)
 		if !found {
 			ctx.AbortWithStatusJSON(404, gin.H{
 				"error": "not_found_client", // TODO: need to handle error
@@ -46,21 +51,27 @@ func mountHandler(rGroup *gin.RouterGroup, sseServer server.SSEServer) {
 			return
 		}
 
-		sseServer.SendMessage(client.ID, "test send message")
+		sseServer.SendMessage(client.ID, server.Event{
+			Event:   "event",
+			Message: "test send message",
+		})
 		ctx.Status(200)
 	})
 
 	rGroup.GET("/events", server.SSEHeadersMiddleware(), sseHandler(sseServer))
+	// rGroup.GET("/events", func(ctx *gin.Context) {
+	// 	sseServer.ServeHTTP(ctx.Writer, ctx.Request)
+	// })
 }
 
 func sseHandler(sseServer server.SSEServer) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		clientID := xid.New().String()
-		client := sseServer.AddClient(clientID)
+		connectionID := xid.New().String()
+		client := sseServer.AddConnection(connectionID)
 		fmt.Println("Client connected ID:", client.ID)
 
 		defer func() {
-			sseServer.RemoveClient(clientID)
+			sseServer.RemoveConnection(connectionID)
 			fmt.Println("Client disconnected")
 		}()
 
@@ -69,8 +80,8 @@ func sseHandler(sseServer server.SSEServer) gin.HandlerFunc {
 			case <-ctx.Request.Context().Done():
 				fmt.Printf("Client connection closed\n")
 				return false
-			case msg := <-client.MessageChan():
-				ctx.SSEvent("message", msg)
+			case event := <-client.EventChan():
+				ctx.SSEvent(event.Event, event.Message)
 				return true
 			}
 		})
