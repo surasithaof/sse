@@ -2,11 +2,6 @@ package server
 
 import "sync"
 
-type Client struct {
-	ID          string
-	messageChan chan string
-}
-
 type serverImpl struct {
 	clients     map[string]*Client
 	messageChan chan string
