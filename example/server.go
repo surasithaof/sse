@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,8 @@ import (
 func main() {
 	router := gin.Default()
 	router.Use(cors.Default())
+
+	router.StaticFS("/client", http.Dir("./example/public"))
 
 	router.GET("/health", func(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{
@@ -41,7 +44,7 @@ func mountHTTPHandler(rGroup *gin.RouterGroup, simpleSSEServer sseHTTP.SSEServer
 	})
 
 	rGroup.POST("/simple-events", func(ctx *gin.Context) {
-		simpleSSEServer.Broadcast("event", map[string]any{
+		simpleSSEServer.Broadcast("message", map[string]any{
 			"message": "test broadcast message",
 		})
 		ctx.Status(200)
@@ -49,7 +52,7 @@ func mountHTTPHandler(rGroup *gin.RouterGroup, simpleSSEServer sseHTTP.SSEServer
 
 	rGroup.POST("/simple-events/:connectionID", func(ctx *gin.Context) {
 		connectionID := ctx.Param("connectionID")
-		err := simpleSSEServer.SendMessage(connectionID, "event", map[string]any{
+		err := simpleSSEServer.SendMessage(connectionID, "message", map[string]any{
 			"message": "test send message",
 		})
 		if err != nil {
@@ -71,7 +74,7 @@ func mountGinHandler(rGroup *gin.RouterGroup, ginSSEServer sseGin.SSEServer) {
 
 	rGroup.POST("/gin-events", func(ctx *gin.Context) {
 		ginSSEServer.BroadcastMessage(sseGin.Event{
-			Event: "event",
+			Event: "message",
 			Message: map[string]any{
 				"message": "test broadcast message",
 			},
@@ -82,7 +85,7 @@ func mountGinHandler(rGroup *gin.RouterGroup, ginSSEServer sseGin.SSEServer) {
 	rGroup.POST("/gin-events/:clientID", func(ctx *gin.Context) {
 		clientID := ctx.Param("clientID")
 		err := ginSSEServer.SendMessage(clientID, sseGin.Event{
-			Event: "event",
+			Event: "message",
 			Message: map[string]any{
 				"message": "test send message",
 			},
