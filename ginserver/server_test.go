@@ -13,6 +13,7 @@ import (
 
 const (
 	EventContextPath = "/events"
+	TestConnectionID = "testConnectionID"
 )
 
 type TestResponseRecorder struct {
@@ -40,11 +41,10 @@ func TestSSEServer(t *testing.T) {
 	res := CreateTestResponseRecorder()
 	_, r := gin.CreateTestContext(res)
 
-	connectionID := "testConnectionID"
 	sseServer := ginserver.NewServer()
 
 	r.GET(EventContextPath, func(ctx *gin.Context) {
-		sseServer.Listen(ctx, connectionID)
+		sseServer.Listen(ctx, TestConnectionID)
 	})
 
 	srv := httptest.NewServer(r)
@@ -79,10 +79,10 @@ func TestSSEServer(t *testing.T) {
 		messageChan <- message
 	}()
 
-	// // wait for client connect
+	// wait for client connect
 	time.Sleep(2 * time.Second)
 
-	err = sseServer.SendMessage(connectionID, ginserver.Event{
+	err = sseServer.SendMessage(TestConnectionID, ginserver.Event{
 		Event:   "message",
 		Message: "test message",
 	})

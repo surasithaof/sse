@@ -24,7 +24,7 @@ func (connection *Connection) send(event string, message any) error {
 		msg = string(msgJSON)
 	}
 
-	msgBytes := []byte(fmt.Sprintf("event: %s\ndata:%s\n\n", event, msg))
+	msgBytes := []byte(fmt.Sprintf("event:%s\ndata:%s\n\n", event, msg))
 	_, err := connection.writer.Write(msgBytes)
 	if err != nil {
 		return err
