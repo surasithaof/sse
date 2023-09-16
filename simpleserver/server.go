@@ -1,6 +1,7 @@
 package simpleserver
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -61,23 +62,26 @@ func (s *server) ServeHTTP(rw http.ResponseWriter, req *http.Request, connection
 	rw.Header().Set("Connection", "keep-alive")
 	rw.Header().Set("Access-Control-Allow-Origin", "*")
 
-	fmt.Println("client connected ID:", connectionID)
-
 	<-req.Context().Done()
 }
 
-func (s *server) SendMessage(connectionID string, event string, message any) {
+func (s *server) SendMessage(connectionID string, event string, message any) error {
 	s.RLock()
 	defer s.RUnlock()
 
 	connection, ok := s.connections[connectionID]
+	if !ok {
+		// TODO: need to handle error
+		return errors.New("not_found_connection")
+	}
 	if ok {
 		err := connection.send(event, message)
 		if err != nil {
 			s.removeClient(connection.ID)
-			return
+			return err
 		}
 	}
+	return nil
 }
 
 func (s *server) Broadcast(event string, message any) {

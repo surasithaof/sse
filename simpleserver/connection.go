@@ -15,7 +15,6 @@ type Connection struct {
 }
 
 func (connection *Connection) send(event string, message any) error {
-
 	msg, ok := message.(string)
 	if !ok {
 		msgJSON, err := json.Marshal(message)

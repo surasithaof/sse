@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/gin-contrib/cors"
@@ -33,23 +34,29 @@ func main() {
 }
 
 func mountHTTPHandler(rGroup *gin.RouterGroup, simpleSSEServer simpleserver.SSEServer) {
-	rGroup.GET("/simple-event", func(ctx *gin.Context) {
-		cID := xid.New().String()
-		simpleSSEServer.ServeHTTP(ctx.Writer, ctx.Request, cID)
+	rGroup.GET("/simple-events", func(ctx *gin.Context) {
+		connectionID := xid.New().String()
+		fmt.Println("client connection ID:", connectionID)
+		simpleSSEServer.ServeHTTP(ctx.Writer, ctx.Request, connectionID)
 	})
 
-	rGroup.POST("/simple-event", func(ctx *gin.Context) {
+	rGroup.POST("/simple-events", func(ctx *gin.Context) {
 		simpleSSEServer.Broadcast("event", map[string]any{
 			"message": "test broadcast message",
 		})
 		ctx.Status(200)
 	})
 
-	rGroup.POST("/simple-event/:connectionID", func(ctx *gin.Context) {
+	rGroup.POST("/simple-events/:connectionID", func(ctx *gin.Context) {
 		connectionID := ctx.Param("connectionID")
-		simpleSSEServer.SendMessage(connectionID, "event", map[string]any{
+		err := simpleSSEServer.SendMessage(connectionID, "event", map[string]any{
 			"message": "test send message",
 		})
+		if err != nil {
+			ctx.AbortWithStatusJSON(500, gin.H{
+				"error": err.Error(),
+			})
+		}
 		ctx.Status(200)
 	})
 
@@ -58,10 +65,11 @@ func mountHTTPHandler(rGroup *gin.RouterGroup, simpleSSEServer simpleserver.SSES
 func mountGinHandler(rGroup *gin.RouterGroup, ginSSEServer ginserver.SSEServer) {
 	rGroup.GET("/gin-events", ginserver.SSEHeadersMiddleware(), func(ctx *gin.Context) {
 		connectionID := xid.New().String()
+		fmt.Println("client connection ID:", connectionID)
 		ginSSEServer.Listen(ctx, connectionID)
 	})
 
-	rGroup.POST("/gin-event", func(ctx *gin.Context) {
+	rGroup.POST("/gin-events", func(ctx *gin.Context) {
 		ginSSEServer.BroadcastMessage(ginserver.Event{
 			Event: "event",
 			Message: map[string]any{
@@ -71,7 +79,7 @@ func mountGinHandler(rGroup *gin.RouterGroup, ginSSEServer ginserver.SSEServer) 
 		ctx.Status(200)
 	})
 
-	rGroup.POST("/gin-event/:clientID", func(ctx *gin.Context) {
+	rGroup.POST("/gin-events/:clientID", func(ctx *gin.Context) {
 		clientID := ctx.Param("clientID")
 		err := ginSSEServer.SendMessage(clientID, ginserver.Event{
 			Event: "event",
