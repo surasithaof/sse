@@ -1,2 +1,2 @@
-# sse
-Server send event
+# Server Send Event
+Server Send Event with Golang for POC
