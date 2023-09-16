@@ -1,15 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"log"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/xid"
-	simplehttp "github.com/surasithaof/sse/http"
-	"github.com/surasithaof/sse/server"
+	"github.com/surasithaof/sse/ginserver"
+	"github.com/surasithaof/sse/simpleserver"
 )
 
 func main() {
@@ -22,28 +20,11 @@ func main() {
 		})
 	})
 
-	sseServer := server.NewServer()
-	mountHandler(&router.RouterGroup, sseServer)
+	ginSSEServer := ginserver.NewServer()
+	mountGinHandler(&router.RouterGroup, ginSSEServer)
 
-	simpleHTTPServer := simplehttp.NewServer()
-
-	router.GET("/simple-event", func(ctx *gin.Context) {
-		cID := xid.New().String()
-		simpleHTTPServer.ServeHTTP(ctx.Writer, ctx.Request, cID)
-	})
-
-	router.POST("/simple-event", func(ctx *gin.Context) {
-		simpleHTTPServer.Broadcast("event", gin.H{
-			"message": "test broadcast message",
-		})
-	})
-
-	router.POST("/simple-event/:connectionID", func(ctx *gin.Context) {
-		connectionID := ctx.Param("connectionID")
-		simpleHTTPServer.SendMessage(connectionID, "event", gin.H{
-			"message": "test send message",
-		})
-	})
+	simpleSSEServer := simpleserver.NewServer()
+	mountHTTPHandler(&router.RouterGroup, simpleSSEServer)
 
 	err := router.Run(":8000")
 	if err != nil {
@@ -51,60 +32,60 @@ func main() {
 	}
 }
 
-func mountHandler(rGroup *gin.RouterGroup, sseServer server.SSEServer) {
-	rGroup.POST("/send-event", func(ctx *gin.Context) {
-		sseServer.BroadcastMessage(server.Event{
+func mountHTTPHandler(rGroup *gin.RouterGroup, simpleSSEServer simpleserver.SSEServer) {
+	rGroup.GET("/simple-event", func(ctx *gin.Context) {
+		cID := xid.New().String()
+		simpleSSEServer.ServeHTTP(ctx.Writer, ctx.Request, cID)
+	})
+
+	rGroup.POST("/simple-event", func(ctx *gin.Context) {
+		simpleSSEServer.Broadcast("event", map[string]any{
+			"message": "test broadcast message",
+		})
+		ctx.Status(200)
+	})
+
+	rGroup.POST("/simple-event/:connectionID", func(ctx *gin.Context) {
+		connectionID := ctx.Param("connectionID")
+		simpleSSEServer.SendMessage(connectionID, "event", map[string]any{
+			"message": "test send message",
+		})
+		ctx.Status(200)
+	})
+
+}
+
+func mountGinHandler(rGroup *gin.RouterGroup, ginSSEServer ginserver.SSEServer) {
+	rGroup.GET("/gin-events", ginserver.SSEHeadersMiddleware(), func(ctx *gin.Context) {
+		connectionID := xid.New().String()
+		ginSSEServer.Listen(ctx, connectionID)
+	})
+
+	rGroup.POST("/gin-event", func(ctx *gin.Context) {
+		ginSSEServer.BroadcastMessage(ginserver.Event{
 			Event: "event",
-			Message: gin.H{
+			Message: map[string]any{
 				"message": "test broadcast message",
 			},
 		})
 		ctx.Status(200)
 	})
 
-	rGroup.POST("/send-event/:clientID", func(ctx *gin.Context) {
+	rGroup.POST("/gin-event/:clientID", func(ctx *gin.Context) {
 		clientID := ctx.Param("clientID")
-		client, found := sseServer.Connection(clientID)
-		if !found {
-			ctx.AbortWithStatusJSON(404, gin.H{
-				"error": "not_found_client", // TODO: need to handle error
-			})
-			return
-		}
-
-		sseServer.SendMessage(client.ID, server.Event{
-			Event:   "event",
-			Message: "test send message",
+		err := ginSSEServer.SendMessage(clientID, ginserver.Event{
+			Event: "event",
+			Message: map[string]any{
+				"message": "test send message",
+			},
 		})
+
+		// TODO: need to handle error
+		if err != nil {
+			ctx.AbortWithStatusJSON(500, gin.H{
+				"error": err.Error(),
+			})
+		}
 		ctx.Status(200)
 	})
-
-	rGroup.GET("/events", server.SSEHeadersMiddleware(), sseHandler(sseServer))
-	// rGroup.GET("/events", func(ctx *gin.Context) {
-	// 	sseServer.ServeHTTP(ctx.Writer, ctx.Request)
-	// })
-}
-
-func sseHandler(sseServer server.SSEServer) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		connectionID := xid.New().String()
-		client := sseServer.AddConnection(connectionID)
-		fmt.Println("Client connected ID:", client.ID)
-
-		defer func() {
-			sseServer.RemoveConnection(connectionID)
-			fmt.Println("Client disconnected")
-		}()
-
-		ctx.Stream(func(w io.Writer) bool {
-			select {
-			case <-ctx.Request.Context().Done():
-				fmt.Printf("Client connection closed\n")
-				return false
-			case event := <-client.EventChan():
-				ctx.SSEvent(event.Event, event.Message)
-				return true
-			}
-		})
-	}
 }

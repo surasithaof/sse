@@ -1,7 +1,11 @@
-package server
+package ginserver
 
 import (
+	"errors"
+	"io"
 	"sync"
+
+	"github.com/gin-gonic/gin"
 )
 
 type serverImpl struct {
@@ -18,7 +22,7 @@ func NewServer() SSEServer {
 	return &s
 }
 
-func (s *serverImpl) AddConnection(connectionID string) Connection {
+func (s *serverImpl) addConnection(connectionID string) Connection {
 	s.Lock()
 	defer s.Unlock()
 
@@ -31,7 +35,7 @@ func (s *serverImpl) AddConnection(connectionID string) Connection {
 	return connection
 }
 
-func (s *serverImpl) RemoveConnection(connectionID string) bool {
+func (s *serverImpl) removeConnection(connectionID string) bool {
 	s.Lock()
 	defer s.Unlock()
 
@@ -44,11 +48,7 @@ func (s *serverImpl) RemoveConnection(connectionID string) bool {
 	return true
 }
 
-func (s *serverImpl) Connections() map[string]*Connection {
-	return s.connections
-}
-
-func (s *serverImpl) Connection(connectionID string) (*Connection, bool) {
+func (s *serverImpl) connection(connectionID string) (*Connection, bool) {
 	connection, ok := s.connections[connectionID]
 	if !ok {
 		return nil, false
@@ -56,15 +56,17 @@ func (s *serverImpl) Connection(connectionID string) (*Connection, bool) {
 	return connection, true
 }
 
-func (s *serverImpl) SendMessage(connectionID string, event Event) {
+func (s *serverImpl) SendMessage(connectionID string, event Event) error {
 	s.Lock()
 	defer s.Unlock()
 
 	connection, ok := s.connections[connectionID]
 	if !ok {
-		return
+		// TODO: need to handle error
+		return errors.New("not_found_connection")
 	}
 	connection.SendMessage(event)
+	return nil
 }
 
 func (s *serverImpl) BroadcastMessage(event Event) {
@@ -74,4 +76,22 @@ func (s *serverImpl) BroadcastMessage(event Event) {
 	for _, connection := range s.connections {
 		connection.SendMessage(event)
 	}
+}
+
+func (s *serverImpl) Listen(ctx *gin.Context, connectionID string) {
+	client := s.addConnection(connectionID)
+
+	defer func() {
+		s.removeConnection(connectionID)
+	}()
+
+	ctx.Stream(func(w io.Writer) bool {
+		select {
+		case <-ctx.Request.Context().Done():
+			return false
+		case event := <-client.EventChan():
+			ctx.SSEvent(event.Event, event.Message)
+			return true
+		}
+	})
 }

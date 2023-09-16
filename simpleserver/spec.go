@@ -1,4 +1,4 @@
-package simplehttp
+package simpleserver
 
 import "net/http"
 

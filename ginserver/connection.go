@@ -1,4 +1,4 @@
-package server
+package ginserver
 
 type Connection struct {
 	ID          string
