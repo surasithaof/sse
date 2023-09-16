@@ -1,4 +1,4 @@
-package http
+package simplehttp
 
 import (
 	"fmt"
@@ -6,17 +6,19 @@ import (
 	"sync"
 )
 
-type Server struct {
+type server struct {
 	connections map[string]*Connection
 	sync.RWMutex
 }
 
-func NewServer() *Server {
-	s := Server{}
+func NewServer() SSEServer {
+	s := server{
+		connections: make(map[string]*Connection),
+	}
 	return &s
 }
 
-func (s *Server) addClient(clientID string, rw http.ResponseWriter, req *http.Request) *Connection {
+func (s *server) addClient(clientID string, rw http.ResponseWriter, req *http.Request) *Connection {
 	flusher, ok := rw.(http.Flusher)
 
 	if !ok {
@@ -37,9 +39,10 @@ func (s *Server) addClient(clientID string, rw http.ResponseWriter, req *http.Re
 	return client
 }
 
-func (s *Server) removeClient(clientID string) {
+func (s *server) removeClient(clientID string) {
 	s.Lock()
 	defer s.Unlock()
+	fmt.Sprintln("Client gone")
 
 	_, ok := s.connections[clientID]
 	if ok {
@@ -47,10 +50,10 @@ func (s *Server) removeClient(clientID string) {
 	}
 }
 
-func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request, connectionID string) {
+func (s *server) ServeHTTP(rw http.ResponseWriter, req *http.Request, connectionID string) {
 	s.addClient(connectionID, rw, req)
 	defer func() {
-		s.removeClient(req.RemoteAddr)
+		s.removeClient(connectionID)
 	}()
 
 	rw.Header().Set("Content-Type", "text/event-stream")
@@ -63,18 +66,29 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request, connection
 	<-req.Context().Done()
 }
 
-func (s *Server) Send(event string, message string) {
+func (s *server) SendMessage(connectionID string, event string, message any) {
 	s.RLock()
 	defer s.RUnlock()
 
-	msgBytes := []byte(fmt.Sprintf("event: %s\n\ndata:%s\n\n", event, message))
+	connection, ok := s.connections[connectionID]
+	if ok {
+		err := connection.send(event, message)
+		if err != nil {
+			s.removeClient(connection.ID)
+			return
+		}
+	}
+}
+
+func (s *server) Broadcast(event string, message any) {
+	s.RLock()
+	defer s.RUnlock()
+
 	for cID, connection := range s.connections {
-		_, err := connection.writer.Write(msgBytes)
+		err := connection.send(event, message)
 		if err != nil {
 			s.removeClient(cID)
 			continue
 		}
-
-		connection.flusher.Flush()
 	}
 }

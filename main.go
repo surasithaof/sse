@@ -8,6 +8,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/xid"
+	simplehttp "github.com/surasithaof/sse/http"
 	"github.com/surasithaof/sse/server"
 )
 
@@ -23,6 +24,26 @@ func main() {
 
 	sseServer := server.NewServer()
 	mountHandler(&router.RouterGroup, sseServer)
+
+	simpleHTTPServer := simplehttp.NewServer()
+
+	router.GET("/simple-event", func(ctx *gin.Context) {
+		cID := xid.New().String()
+		simpleHTTPServer.ServeHTTP(ctx.Writer, ctx.Request, cID)
+	})
+
+	router.POST("/simple-event", func(ctx *gin.Context) {
+		simpleHTTPServer.Broadcast("event", gin.H{
+			"message": "test broadcast message",
+		})
+	})
+
+	router.POST("/simple-event/:connectionID", func(ctx *gin.Context) {
+		connectionID := ctx.Param("connectionID")
+		simpleHTTPServer.SendMessage(connectionID, "event", gin.H{
+			"message": "test send message",
+		})
+	})
 
 	err := router.Run(":8000")
 	if err != nil {
