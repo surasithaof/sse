@@ -1,5 +1,5 @@
-# Server Send Event
+# Server-Sent Events
 
-Server Send Event with Golang for PoC
+Server-Sent Events with Golang for PoC
 
 This contains SSE implementations with simple net/http and Gin framework.
