@@ -10,6 +10,7 @@ import (
 	"github.com/rs/xid"
 	sseGin "github.com/surasithaof/sse/gin"
 	sseHTTP "github.com/surasithaof/sse/http"
+	"github.com/surasithaof/sse/shared"
 )
 
 func main() {
@@ -40,21 +41,25 @@ func mountHTTPHandler(rGroup *gin.RouterGroup, simpleSSEServer sseHTTP.SSEServer
 	rGroup.GET("/simple-events", func(ctx *gin.Context) {
 		connectionID := xid.New().String()
 		fmt.Println("client connection ID:", connectionID)
-		simpleSSEServer.ServeHTTP(ctx.Writer, ctx.Request, connectionID)
+		simpleSSEServer.Listen(ctx.Writer, ctx.Request, connectionID)
 	})
 
 	rGroup.POST("/simple-events", func(ctx *gin.Context) {
-		simpleSSEServer.Broadcast("message", map[string]any{
-			"message": "test broadcast message",
-		})
+		simpleSSEServer.Broadcast(shared.Event{
+			Event: "message",
+			Message: map[string]any{
+				"message": "test broadcast message",
+			}})
 		ctx.Status(200)
 	})
 
 	rGroup.POST("/simple-events/:connectionID", func(ctx *gin.Context) {
 		connectionID := ctx.Param("connectionID")
-		err := simpleSSEServer.SendMessage(connectionID, "message", map[string]any{
-			"message": "test send message",
-		})
+		err := simpleSSEServer.SendMessage(connectionID, shared.Event{
+			Event: "message",
+			Message: map[string]any{
+				"message": "test send message",
+			}})
 		if err != nil {
 			ctx.AbortWithStatusJSON(500, gin.H{
 				"error": err.Error(),
@@ -73,23 +78,21 @@ func mountGinHandler(rGroup *gin.RouterGroup, ginSSEServer sseGin.SSEServer) {
 	})
 
 	rGroup.POST("/gin-events", func(ctx *gin.Context) {
-		ginSSEServer.BroadcastMessage(sseGin.Event{
+		ginSSEServer.BroadcastMessage(shared.Event{
 			Event: "message",
 			Message: map[string]any{
 				"message": "test broadcast message",
-			},
-		})
+			}})
 		ctx.Status(200)
 	})
 
 	rGroup.POST("/gin-events/:clientID", func(ctx *gin.Context) {
 		clientID := ctx.Param("clientID")
-		err := ginSSEServer.SendMessage(clientID, sseGin.Event{
+		err := ginSSEServer.SendMessage(clientID, shared.Event{
 			Event: "message",
 			Message: map[string]any{
 				"message": "test send message",
-			},
-		})
+			}})
 
 		// TODO: need to handle error
 		if err != nil {
