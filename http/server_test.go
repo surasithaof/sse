@@ -8,6 +8,7 @@ import (
 	"time"
 
 	sseHTTP "github.com/surasithaof/sse/http"
+	"github.com/surasithaof/sse/shared"
 )
 
 const (
@@ -19,8 +20,8 @@ func TestSSEServer(t *testing.T) {
 
 	sseServer := sseHTTP.NewServer()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sseServer.ServeHTTP(w, r, TestConnectionID)
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		sseServer.Listen(rw, req, TestConnectionID)
 	}))
 	defer srv.Close()
 
@@ -56,7 +57,10 @@ func TestSSEServer(t *testing.T) {
 	// wait for client connect
 	time.Sleep(2 * time.Second)
 
-	err = sseServer.SendMessage(TestConnectionID, "message", "test message")
+	err = sseServer.SendMessage(TestConnectionID, shared.Event{
+		Event:   "message",
+		Message: "test message",
+	})
 	if err != nil {
 		t.Error(err)
 	}

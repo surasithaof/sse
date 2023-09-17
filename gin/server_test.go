@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	sseGin "github.com/surasithaof/sse/gin"
+	"github.com/surasithaof/sse/shared"
 )
 
 const (
@@ -23,10 +24,6 @@ type TestResponseRecorder struct {
 
 func (r *TestResponseRecorder) CloseNotify() <-chan bool {
 	return r.closeChannel
-}
-
-func (r *TestResponseRecorder) closeClient() {
-	r.closeChannel <- true
 }
 
 // Use this instead of httptest.NewRecorder().
@@ -46,7 +43,7 @@ func TestSSEServer(t *testing.T) {
 
 	sseServer := sseGin.NewServer()
 
-	r.GET(EventContextPath, func(ctx *gin.Context) {
+	r.GET(EventContextPath, sseGin.SSEHeadersMiddleware(), func(ctx *gin.Context) {
 		sseServer.Listen(ctx, TestConnectionID)
 	})
 
@@ -85,7 +82,7 @@ func TestSSEServer(t *testing.T) {
 	// wait for client connect
 	time.Sleep(2 * time.Second)
 
-	err = sseServer.SendMessage(TestConnectionID, sseGin.Event{
+	err = sseServer.SendMessage(TestConnectionID, shared.Event{
 		Event:   "message",
 		Message: "test message",
 	})

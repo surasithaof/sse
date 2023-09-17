@@ -1,0 +1,14 @@
+{
+	"[go]": {
+		"editor.formatOnSave": true,
+		"editor.defaultFormatter": "golang.go"
+	},
+	"go.testEnvFile": "${workspaceFolder}/.env",
+	"go.testFlags": [
+		"-v"
+	],
+	"go.lintTool": "golangci-lint",
+	"go.lintFlags": [
+		"--fast"
+	]
+}

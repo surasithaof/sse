@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+
+	"github.com/surasithaof/sse/shared"
 )
 
 type server struct {
@@ -51,7 +53,7 @@ func (s *server) removeClient(clientID string) {
 	}
 }
 
-func (s *server) ServeHTTP(rw http.ResponseWriter, req *http.Request, connectionID string) {
+func (s *server) Listen(rw http.ResponseWriter, req *http.Request, connectionID string) {
 	s.addClient(connectionID, rw, req)
 	defer func() {
 		s.removeClient(connectionID)
@@ -65,7 +67,7 @@ func (s *server) ServeHTTP(rw http.ResponseWriter, req *http.Request, connection
 	<-req.Context().Done()
 }
 
-func (s *server) SendMessage(connectionID string, event string, message any) error {
+func (s *server) SendMessage(connectionID string, event shared.Event) error {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -75,7 +77,7 @@ func (s *server) SendMessage(connectionID string, event string, message any) err
 		return errors.New("not_found_connection")
 	}
 	if ok {
-		err := connection.send(event, message)
+		err := connection.send(event.Event, event.Message)
 		if err != nil {
 			s.removeClient(connection.ID)
 			return err
@@ -84,12 +86,12 @@ func (s *server) SendMessage(connectionID string, event string, message any) err
 	return nil
 }
 
-func (s *server) Broadcast(event string, message any) {
+func (s *server) Broadcast(event shared.Event) {
 	s.RLock()
 	defer s.RUnlock()
 
 	for cID, connection := range s.connections {
-		err := connection.send(event, message)
+		err := connection.send(event.Event, event.Message)
 		if err != nil {
 			s.removeClient(cID)
 			continue

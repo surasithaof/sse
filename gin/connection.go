@@ -1,19 +1,16 @@
 package gin
 
+import "github.com/surasithaof/sse/shared"
+
 type Connection struct {
 	ID          string
-	messageChan chan Event
+	messageChan chan shared.Event
 }
 
-type Event struct {
-	Event   string
-	Message any
-}
-
-func (c *Connection) EventChan() chan Event {
+func (c *Connection) EventChan() chan shared.Event {
 	return c.messageChan
 }
 
-func (c *Connection) SendMessage(event Event) {
+func (c *Connection) SendMessage(event shared.Event) {
 	c.messageChan <- event
 }

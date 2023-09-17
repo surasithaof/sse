@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"github.com/surasithaof/sse/shared"
 )
 
 type serverImpl struct {
@@ -28,7 +29,7 @@ func (s *serverImpl) addConnection(connectionID string) Connection {
 
 	connection := Connection{
 		ID:          connectionID,
-		messageChan: make(chan Event),
+		messageChan: make(chan shared.Event),
 	}
 
 	s.connections[connection.ID] = &connection
@@ -48,15 +49,7 @@ func (s *serverImpl) removeConnection(connectionID string) bool {
 	return true
 }
 
-func (s *serverImpl) connection(connectionID string) (*Connection, bool) {
-	connection, ok := s.connections[connectionID]
-	if !ok {
-		return nil, false
-	}
-	return connection, true
-}
-
-func (s *serverImpl) SendMessage(connectionID string, event Event) error {
+func (s *serverImpl) SendMessage(connectionID string, event shared.Event) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -69,7 +62,7 @@ func (s *serverImpl) SendMessage(connectionID string, event Event) error {
 	return nil
 }
 
-func (s *serverImpl) BroadcastMessage(event Event) {
+func (s *serverImpl) BroadcastMessage(event shared.Event) {
 	s.Lock()
 	defer s.Unlock()
 
